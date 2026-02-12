@@ -85,10 +85,10 @@ class ThemeController extends Controller
                     $newConfig = $this->themes->readConfig($theme) ?? [];
 
                     $migratorPath = $this->themes->path('config/migrator.php', $theme);
-                    
+
                     if ($migratorPath !== null && $this->files->exists($migratorPath)) {
                         $migrator = $this->files->getRequire($migratorPath);
-                        
+
                         if (is_callable($migrator)) {
                             $mergedConfig = $migrator($oldConfig, $newConfig);
                         } else {
@@ -232,9 +232,9 @@ class ThemeController extends Controller
                     $config[$key] = [];
                     continue;
                 }
-                
+
                 $isIndexedArray = empty($value) || array_keys($value) === range(0, count($value) - 1);
-                
+
                 if ($isIndexedArray) {
                     $config[$key] = $value;
                 } else {
