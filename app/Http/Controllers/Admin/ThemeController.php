@@ -221,20 +221,25 @@ class ThemeController extends Controller
     protected static function appendConfig(array $config, array $replacement): array
     {
         foreach ($replacement as $key => $value) {
-            if (is_array($value)) {
-                // Replace instead of merge when `$replace` key is set to true
-                if ($value['$replace'] ?? false) {
-                    unset($value['$replace']);
-                    $config[$key] = $value;
-                    continue;
-                }
-
-                $config[$key] = static::appendConfig($config[$key] ?? [], $value);
-
+            if (! is_array($value)) {
+                $config[$key] = $value;
                 continue;
             }
 
-            $config[$key] = $value;
+            // Replace instead of merge when `$replace` key is set to true
+            if ($value['$replace'] ?? false) {
+                unset($value['$replace']);
+                $config[$key] = $value;
+                continue;
+            }
+
+            // Replace numeric arrays (lists) instead of merging
+            if (array_is_list($value)) {
+                $config[$key] = $value;
+                continue;
+            }
+
+            $config[$key] = static::appendConfig($config[$key] ?? [], $value);
         }
 
         return $config;
