@@ -83,20 +83,14 @@ class ThemeController extends Controller
 
                 if ($oldConfig !== null) {
                     $newConfig = $this->themes->readConfig($theme) ?? [];
+                    $migratePath = $this->themes->path('config/migrate.php', $theme);
+                    $mergeStrategy = $this->files->exists($migratePath)
+                        ? $this->files->getRequire($migratePath)
+                        : null;
 
-                    $migratorPath = $this->themes->path('config/migrator.php', $theme);
-
-                    if ($migratorPath !== null && $this->files->exists($migratorPath)) {
-                        $migrator = $this->files->getRequire($migratorPath);
-
-                        if (is_callable($migrator)) {
-                            $mergedConfig = $migrator($oldConfig, $newConfig);
-                        } else {
-                            $mergedConfig = array_merge($newConfig, $oldConfig);
-                        }
-                    } else {
-                        $mergedConfig = array_merge($newConfig, $oldConfig);
-                    }
+                    $mergedConfig = is_callable($mergeStrategy)
+                        ? $mergeStrategy($oldConfig, $newConfig)
+                        : array_merge($newConfig, $oldConfig);
 
                     $this->themes->updateConfig($theme, $mergedConfig);
                 }
@@ -228,24 +222,19 @@ class ThemeController extends Controller
     {
         foreach ($replacement as $key => $value) {
             if (is_array($value)) {
-                if (isset($value['_empty']) && $value['_empty'] === '1' && count($value) === 1) {
-                    $config[$key] = [];
+                // Replace instead of merge when `$replace` key is set to true
+                if ($value['$replace'] ?? false) {
+                    unset($value['$replace']);
+                    $config[$key] = $value;
                     continue;
                 }
 
-                $isIndexedArray = empty($value) || array_keys($value) === range(0, count($value) - 1);
+                $config[$key] = static::appendConfig($config[$key] ?? [], $value);
 
-                if ($isIndexedArray) {
-                    $config[$key] = $value;
-                } else {
-                    $existing = $config[$key] ?? [];
-                    $config[$key] = is_array($existing)
-                        ? static::appendConfig($existing, $value)
-                        : $value;
-                }
-            } else {
-                $config[$key] = $value;
+                continue;
             }
+
+            $config[$key] = $value;
         }
 
         return $config;
